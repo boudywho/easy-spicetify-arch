@@ -1,7 +1,7 @@
 # Spice Up Your Spotify on Arch Linux  
 ### The (Mostly) Hands-Off Spicetify Installer – Flatpak Edition
 
-[![Script Version](https://img.shields.io/badge/Script%20Version-v2.3.0-success?style=for-the-badge&logo=bash)](./spicetify.sh)  
+[![Script Version](https://img.shields.io/badge/Script%20Version-v2.3.3-success?style=for-the-badge&logo=bash)](./spicetify.sh)  
 [![GitHub Stars](https://img.shields.io/github/stars/boudywho/easy-spicetify-arch?style=for-the-badge&logo=github&label=Star%20Me!)](https://github.com/boudywho/easy-spicetify-arch/stargazers)  
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
 
