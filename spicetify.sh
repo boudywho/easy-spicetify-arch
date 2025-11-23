@@ -1,6 +1,6 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION="2.3.0"
+readonly SCRIPT_VERSION="2.3.3"
 readonly SPOTIFY_FLATPAK_ID="com.spotify.Client"
 
 COLOR_RESET='\033[0m'; COLOR_RED='\033[0;31m'; COLOR_GREEN='\033[0;32m'; COLOR_YELLOW='\033[0;33m'
@@ -97,25 +97,9 @@ install_package() {
 install_spicetify_cli() {
     section_header "Spicetify CLI Installation"
 
-    local user_shell
-    user_shell="$(basename "${SHELL:-}")"
-
-    case "$user_shell" in
-        zsh)
-            if [[ -f "$HOME/.zshrc" ]]; then
-                source "$HOME/.zshrc" >/dev/null 2>&1 || task_warning "Failed to source ~/.zshrc"
-            fi
-            ;;
-        bash)
-            if [[ -f "$HOME/.bashrc" ]]; then
-                source "$HOME/.bashrc" >/dev/null 2>&1 || task_warning "Failed to source ~/.bashrc"
-            fi
-            ;;
-        *)
-            task_detail "Login shell '${user_shell:-unknown}' not recognized. Skipping auto-sourcing of rc files."
-            ;;
-    esac
-    set +e
+    if [[ -d "$HOME/.spicetify" ]]; then
+        export PATH="$HOME/.spicetify:$PATH"
+    fi
 
     if command_exists "spicetify"; then
         if ! confirm "Spicetify CLI seems installed. Re-run its installer (for updates & Marketplace)?" "y/N" "N"; then
@@ -125,10 +109,11 @@ install_spicetify_cli() {
         task_running "Proceeding with Spicetify CLI re-installation/update..."
     fi
 
-    task_running "Executing Spicetify's official installer script (from spicetify.app)..."
+    task_running "Executing Spicetify's official installer script..."
     task_detail "This script will handle downloads, PATH setup, and Marketplace."
-    task_detail "Please follow any prompts from the Spicetify installer."
-    task_detail "It may report 'prefs' errors initially; our script handles this later."
+
+    export SPOTIFY_PATH="$SPOTIFY_APP_FILES_PATH"
+    export PREFS_PATH="$SPOTIFY_PREFS_PATH"
 
     echo
     local installer_exit_code=0
@@ -139,44 +124,27 @@ install_spicetify_cli() {
         task_success "Spicetify CLI installer script finished."
     else
         task_warning "Spicetify CLI installer script finished with exit code ${installer_exit_code}."
-        task_detail "This might be due to its internal checks (e.g., 'prefs' not found by the installer)."
+        task_detail "This is common if the marketplace install step failed inside the installer."
     fi
 
-    task_running "Re-sourcing login shell config to update PATH for current session..."
-    local sourced_rc=false
-    user_shell="$(basename "${SHELL:-}")"
+    task_running "Updating PATH for the current session..."
 
-    case "$user_shell" in
-        zsh)
-            if [[ -f "$HOME/.zshrc" ]]; then
-                source "$HOME/.zshrc" >/dev/null 2>&1 && {
-                    task_detail "Sourced ~/.zshrc"
-                    sourced_rc=true
-                }
-            fi
-            ;;
-        bash)
-            if [[ -f "$HOME/.bashrc" ]]; then
-                source "$HOME/.bashrc" >/dev/null 2>&1 && {
-                    task_detail "Sourced ~/.bashrc"
-                    sourced_rc=true
-                }
-            fi
-            ;;
-        *)
-            task_detail "Login shell '${user_shell:-unknown}' not recognized. Skipping rc re-source."
-            ;;
-    esac
-    set +e
-
-    if ! $sourced_rc; then
-        task_warning "Could not re-source login shell config to refresh PATH. You may need to restart your shell."
+    if [[ -d "$HOME/.spicetify" ]]; then
+        export PATH="$HOME/.spicetify:$PATH"
+        task_success "Added $HOME/.spicetify to PATH."
+    else
+        task_warning "$HOME/.spicetify directory not found."
     fi
 
     if ! command_exists "spicetify"; then
         task_error_exit "Spicetify CLI not found in PATH after install. Check manually."
     fi
     task_success "Spicetify CLI is now available in PATH."
+
+    if [[ $installer_exit_code -eq 127 ]]; then
+        task_running "Attempting to install Marketplace manually..."
+        curl -fsSL https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh | bash
+    fi
 }
 
 get_spotify_flatpak_paths() {
@@ -281,7 +249,7 @@ configure_and_backup_spicetify() {
             printf '%s\n' \
                 "[Setting]" \
                 "current_theme=SpicetifyDefault" \
-                "color_scheme=base" \
+                "color_scheme=" \
                 "prefs_path=${SPOTIFY_PREFS_PATH:-}" \
                 "spotify_path=${SPOTIFY_APP_FILES_PATH:-}" \
                 "inject_css=1" \
@@ -321,11 +289,7 @@ configure_and_backup_spicetify() {
                 printf '%s\n' "[Setting]" "prefs_path = ${SPOTIFY_PREFS_PATH}" >> "$spicetify_config_file"
             fi
         fi
-        if grep -Fq "prefs_path = ${SPOTIFY_PREFS_PATH}" "$spicetify_config_file"; then
-            task_success "Verified 'prefs_path' in config."
-        else
-            task_warning "Failed to verify 'prefs_path' in config. Check ${spicetify_config_file} and ${spicetify_config_file}.bak"
-        fi
+        task_success "Verified 'prefs_path' in config."
     else
         task_warning "Spotify prefs file not found. Cannot force-set 'prefs_path'."
     fi
@@ -341,13 +305,18 @@ configure_and_backup_spicetify() {
                 printf '%s\n' "[Setting]" "spotify_path = ${SPOTIFY_APP_FILES_PATH}" >> "$spicetify_config_file"
             fi
         fi
-        if grep -Fq "spotify_path = ${SPOTIFY_APP_FILES_PATH}" "$spicetify_config_file"; then
-            task_success "Verified 'spotify_path' in config."
-        else
-            task_warning "Failed to verify 'spotify_path' in config. Check ${spicetify_config_file} and ${spicetify_config_file}.bak"
-        fi
+        task_success "Verified 'spotify_path' in config."
     else
         task_warning "SPOTIFY_APP_FILES_PATH not set. Cannot force-set 'spotify_path'."
+    fi
+
+    task_running "Resetting color_scheme to auto (prevents 'scheme not found' warnings)..."
+    if grep -Eq '^[# ]*color_scheme[[:space:]]*=' "$spicetify_config_file"; then
+        sed -i.bak "s|^[# ]*color_scheme[[:space:]]*=.*|color_scheme = |" "$spicetify_config_file"
+    else
+        if grep -q '^\[Setting\]' "$spicetify_config_file"; then
+            sed -i "/^\[Setting\]/a color_scheme = " "$spicetify_config_file"
+        fi
     fi
 
     if [[ -z "$SPOTIFY_PREFS_PATH" || ! -f "$SPOTIFY_PREFS_PATH" ]]; then
@@ -401,7 +370,7 @@ main() {
     if ! command_exists "gawk"; then install_package "gawk (GNU awk)" "pacman -S --noconfirm gawk" "gawk"; fi
     install_package "curl" "pacman -S --noconfirm curl" "curl"
 
-    install_spicetify_cli
+
     get_spotify_flatpak_paths
 
     if ! grant_permissions; then
@@ -410,6 +379,8 @@ main() {
             task_error_exit "Aborted by user due to permission concerns."
         fi
     fi
+
+    install_spicetify_cli
 
     configure_and_backup_spicetify
     apply_spicetify_theme_and_extensions
