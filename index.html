@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Spicetify Arch | Automated Installer</title>
+    <meta name="description" content="A shell script that automatically installs and sets up Spicetify for Arch Linux users, fixing Flatpak paths and permissions.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        spotify: '#1DB954',
+                        spotifyDark: '#191414',
+                        arch: '#1793D1',
+                        surface: '#121212',
+                        surfaceHighlight: '#282828',
+                        textMain: '#FFFFFF',
+                        textMuted: '#B3B3B3'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #000000;
+            color: #FFFFFF;
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #1DB954, #1793D1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glass-card {
+            background: rgba(40, 40, 40, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .blob {
+            position: absolute;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.4;
+            animation: pulse 10s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.2); opacity: 0.6; }
+            100% { transform: scale(1); opacity: 0.4; }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121212;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1DB954;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-spotify selection:text-white">
+
+    <!-- Background Blobs -->
+    <div class="blob bg-spotify w-96 h-96 rounded-full top-0 left-0 -translate-x-1/2 -translate-y-1/2"></div>
+    <div class="blob bg-arch w-96 h-96 rounded-full bottom-0 right-0 translate-x-1/2 translate-y-1/2 delay-1000"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed w-full z-50 top-0 left-0 border-b border-white/10 bg-black/80 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <a href="#" class="flex items-center gap-2 font-bold text-xl tracking-tight hover:text-spotify transition-colors">
+                <i class="fa-brands fa-spotify text-spotify text-2xl"></i>
+                <span>Easy Spicetify <span class="text-arch">Arch</span></span>
+            </a>
+            <div class="flex items-center gap-6">
+                <a href="#features" class="hidden md:block text-sm font-medium text-gray-400 hover:text-white transition-colors">Features</a>
+                <a href="#install" class="hidden md:block text-sm font-medium text-gray-400 hover:text-white transition-colors">Install</a>
+                <a href="https://github.com/boudywho/easy-spicetify-arch" target="_blank" class="flex items-center gap-2 bg-white text-black px-4 py-2 rounded-full font-bold text-sm hover:bg-gray-200 transition-transform active:scale-95">
+                    <i class="fa-brands fa-github"></i>
+                    <span>GitHub</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6 overflow-hidden">
+        <div class="max-w-4xl mx-auto text-center">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-spotify mb-8 animate-fade-in-up">
+                <span class="w-2 h-2 rounded-full bg-spotify animate-pulse"></span>
+                v2.3.0 Available Now
+            </div>
+            
+            <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight">
+                Spicetify on Arch.<br>
+                <span class="gradient-text">Simply Painless.</span>
+            </h1>
+            
+            <p class="text-lg md:text-xl text-textMuted mb-10 max-w-2xl mx-auto leading-relaxed">
+                Tired of fighting Flatpak permissions and config paths? This script automates the entire process, getting you from zero to a themed Spotify in seconds.
+            </p>
+            
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="#install" class="w-full sm:w-auto px-8 py-4 bg-spotify hover:bg-green-500 text-black font-bold rounded-lg transition-all transform hover:-translate-y-1 shadow-[0_0_20px_rgba(29,185,84,0.3)] flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-terminal"></i>
+                    Get Started
+                </a>
+                <a href="https://github.com/boudywho/easy-spicetify-arch" target="_blank" class="w-full sm:w-auto px-8 py-4 bg-surfaceHighlight hover:bg-white/10 border border-white/10 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2">
+                    <i class="fa-regular fa-star"></i>
+                    Star on GitHub
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section id="features" class="py-20 bg-surface/50 border-y border-white/5">
+        <div class="max-w-7xl mx-auto px-6">
+            <h2 class="text-3xl font-bold mb-12 text-center">Why use this script?</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Feature 1 -->
+                <div class="glass-card p-8 rounded-2xl hover:border-spotify/50 transition-colors group">
+                    <div class="w-12 h-12 bg-spotify/10 rounded-lg flex items-center justify-center mb-6 text-spotify group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-robot text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">End-to-End Automation</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        Installs dependencies (curl, gawk), runs the official installer, fixes configs, and applies patches automatically.
+                    </p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="glass-card p-8 rounded-2xl hover:border-arch/50 transition-colors group">
+                    <div class="w-12 h-12 bg-arch/10 rounded-lg flex items-center justify-center mb-6 text-arch group-hover:scale-110 transition-transform">
+                        <i class="fa-brands fa-linux text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Smart Flatpak Detection</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        No more manual path hunting. The script finds your system or user-level Flatpak installation and wires it correctly.
+                    </p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="glass-card p-8 rounded-2xl hover:border-purple-500/50 transition-colors group">
+                    <div class="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center mb-6 text-purple-400 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-store text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Marketplace Ready</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        Prompts you to install the Spicetify Marketplace immediately, so you can browse themes and extensions right away.
+                    </p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="glass-card p-8 rounded-2xl hover:border-yellow-500/50 transition-colors group">
+                    <div class="w-12 h-12 bg-yellow-500/10 rounded-lg flex items-center justify-center mb-6 text-yellow-400 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-recycle text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Idempotent Design</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        Safe to re-run. If you run it multiple times, it won't trash your setup; it simply updates and fixes missing pieces.
+                    </p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="glass-card p-8 rounded-2xl hover:border-red-500/50 transition-colors group">
+                    <div class="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center mb-6 text-red-400 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-shield-halved text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Permission Fixer</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        Automatically handles the tricky <code>chmod</code> permissions required for Spicetify to write to Flatpak directories.
+                    </p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="glass-card p-8 rounded-2xl hover:border-blue-500/50 transition-colors group">
+                    <div class="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center mb-6 text-blue-400 group-hover:scale-110 transition-transform">
+                        <i class="fa-solid fa-eye text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Readable Output</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        Color-coded sections and clear messages instead of a wall of text, so you know exactly what the script is doing.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Installation Section -->
+    <section id="install" class="py-20 px-6">
+        <div class="max-w-3xl mx-auto">
+            <h2 class="text-3xl md:text-4xl font-bold mb-2 text-center">Installation</h2>
+            <p class="text-gray-400 text-center mb-10">Follow these steps to spice up your Spotify client.</p>
+
+            <!-- Prerequisite Note -->
+            <div class="bg-blue-900/20 border-l-4 border-arch p-4 mb-8 rounded-r-lg">
+                <div class="flex gap-3">
+                    <i class="fa-solid fa-circle-info text-arch mt-1"></i>
+                    <p class="text-sm text-gray-300">
+                        <strong class="text-white">Before you start:</strong> Make sure you have opened Spotify at least once so the preference files are generated.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 1 -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-lg">1. Clone the repository</h3>
+                    <span class="text-xs font-mono text-gray-500">Terminal</span>
+                </div>
+                <div class="relative group">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-spotify to-arch rounded-lg opacity-20 group-hover:opacity-40 blur transition duration-200"></div>
+                    <div class="relative bg-[#1E1E1E] rounded-lg p-4 font-mono text-sm overflow-x-auto border border-white/10">
+                        <div class="flex items-center justify-between">
+                            <code id="cmd1" class="text-gray-300">git clone https://github.com/boudywho/easy-spicetify-arch.git</code>
+                            <button onclick="copyToClipboard('cmd1', this)" class="text-gray-500 hover:text-white transition-colors" title="Copy to clipboard">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-lg">2. Enter the directory</h3>
+                </div>
+                <div class="relative group">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-spotify to-arch rounded-lg opacity-20 group-hover:opacity-40 blur transition duration-200"></div>
+                    <div class="relative bg-[#1E1E1E] rounded-lg p-4 font-mono text-sm overflow-x-auto border border-white/10">
+                        <div class="flex items-center justify-between">
+                            <code id="cmd2" class="text-gray-300">cd easy-spicetify-arch</code>
+                            <button onclick="copyToClipboard('cmd2', this)" class="text-gray-500 hover:text-white transition-colors" title="Copy to clipboard">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-lg">3. Run the script</h3>
+                </div>
+                <div class="relative group">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-spotify to-arch rounded-lg opacity-20 group-hover:opacity-40 blur transition duration-200"></div>
+                    <div class="relative bg-[#1E1E1E] rounded-lg p-4 font-mono text-sm overflow-x-auto border border-white/10">
+                        <div class="flex items-center justify-between">
+                            <code id="cmd3" class="text-gray-300">./spicetify.sh</code>
+                            <button onclick="copyToClipboard('cmd3', this)" class="text-gray-500 hover:text-white transition-colors" title="Copy to clipboard">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-500 mt-2 italic">
+                    Note: You may be asked for your sudo password to install dependencies and fix permissions.
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-black py-12">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="text-center md:text-left">
+                <p class="font-bold text-white mb-1">easy-spicetify-arch</p>
+                <p class="text-sm text-gray-500">Maintained by <a href="https://github.com/boudywho" class="text-arch hover:underline">boudywho</a></p>
+            </div>
+            
+            <div class="flex gap-6">
+                <a href="https://github.com/boudywho/easy-spicetify-arch" class="text-gray-500 hover:text-white transition-colors">
+                    <i class="fa-brands fa-github text-xl"></i>
+                </a>
+                <a href="https://spicetify.app/" class="text-gray-500 hover:text-spotify transition-colors" title="Official Spicetify Website">
+                    <i class="fa-solid fa-globe text-xl"></i>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        function copyToClipboard(elementId, btn) {
+            const text = document.getElementById(elementId).innerText;
+            const originalIcon = btn.innerHTML;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                // Change icon to checkmark
+                btn.innerHTML = '<i class="fa-solid fa-check text-spotify"></i>';
+                btn.classList.remove('text-gray-500');
+                btn.classList.add('text-spotify');
+                
+                // Revert after 2 seconds
+                setTimeout(() => {
+                    btn.innerHTML = originalIcon;
+                    btn.classList.add('text-gray-500');
+                    btn.classList.remove('text-spotify');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+    </script>
+</body>
+</html>
