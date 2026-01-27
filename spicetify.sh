@@ -6,6 +6,10 @@ readonly SPOTIFY_FLATPAK_ID="com.spotify.Client"
 COLOR_RESET='\033[0m'; COLOR_RED='\033[0;31m'; COLOR_GREEN='\033[0;32m'; COLOR_YELLOW='\033[0;33m'
 COLOR_BLUE='\033[0;34m'; COLOR_PURPLE='\033[0;35m'; COLOR_CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'
 
+DISTRO_TYPE=""
+PKG_MANAGER=""
+PKG_INSTALL_CMD=""
+
 if [[ "$(tput colors)" -ge 256 ]]; then
     COLOR_SPICETIFY='\033[38;5;199m'
 else
@@ -48,6 +52,63 @@ task_error_exit() {
 
 command_exists() { command -v "$1" &>/dev/null; }
 
+detect_os() {
+    section_header "Detecting Operating System"
+
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        case "$ID" in
+            arch|manjaro|endeavouros|garuda)
+                DISTRO_TYPE="arch"
+                PKG_MANAGER="pacman"
+                PKG_INSTALL_CMD="pacman -S --noconfirm"
+                task_success "Detected Arch-based distribution: $PRETTY_NAME"
+                ;;
+            debian|ubuntu|linuxmint|pop)
+                DISTRO_TYPE="debian"
+                PKG_MANAGER="apt"
+                PKG_INSTALL_CMD="apt-get install -y"
+                task_success "Detected Debian-based distribution: $PRETTY_NAME"
+                ;;
+            fedora|rhel|centos|rocky|almalinux)
+                DISTRO_TYPE="fedora"
+                PKG_MANAGER="dnf"
+                PKG_INSTALL_CMD="dnf install -y"
+                task_success "Detected Fedora/RHEL-based distribution: $PRETTY_NAME"
+                ;;
+            *)
+                task_warning "Unknown distribution: $ID"
+                task_warning "Will attempt to detect package manager..."
+                if command_exists "pacman"; then
+                    DISTRO_TYPE="arch"
+                    PKG_MANAGER="pacman"
+                    PKG_INSTALL_CMD="pacman -S --noconfirm"
+                    task_success "Found pacman, treating as Arch-based"
+                elif command_exists "apt-get"; then
+                    DISTRO_TYPE="debian"
+                    PKG_MANAGER="apt"
+                    PKG_INSTALL_CMD="apt-get install -y"
+                    task_success "Found apt, treating as Debian-based"
+                elif command_exists "dnf"; then
+                    DISTRO_TYPE="fedora"
+                    PKG_MANAGER="dnf"
+                    PKG_INSTALL_CMD="dnf install -y"
+                    task_success "Found dnf, treating as Fedora-based"
+                elif command_exists "yum"; then
+                    DISTRO_TYPE="fedora"
+                    PKG_MANAGER="yum"
+                    PKG_INSTALL_CMD="yum install -y"
+                    task_success "Found yum, treating as RHEL-based"
+                else
+                    task_error_exit "Could not detect a supported package manager (pacman, apt, dnf, or yum)"
+                fi
+                ;;
+        esac
+    else
+        task_error_exit "/etc/os-release not found. Cannot detect OS."
+    fi
+}
+
 check_sudo() {
     if [[ "$EUID" -ne 0 ]]; then
         if ! sudo -n true 2>/dev/null; then
@@ -79,15 +140,26 @@ confirm() {
 }
 
 install_package() {
-    local pkg_name="$1"; local pkg_manager_cmd="$2"; local pkg_check_cmd="${3:-$pkg_name}"
+    local pkg_name="$1"; local pkg_check_cmd="${2:-$pkg_name}"
     section_header "Installing ${pkg_name}"
     if command_exists "$pkg_check_cmd"; then
         task_success "${pkg_name} is already installed."
         return 0
     fi
 
-    task_running "Attempting to install ${pkg_name} via pacman..."
-    if sudo ${pkg_manager_cmd}; then
+    case "$DISTRO_TYPE" in
+        debian)
+            task_running "Updating package lists..."
+            sudo apt-get update -qq
+            ;;
+        fedora)
+            task_running "Checking for package updates..."
+            sudo dnf check-update -q || true
+            ;;
+    esac
+
+    task_running "Attempting to install ${pkg_name} via ${PKG_MANAGER}..."
+    if sudo ${PKG_INSTALL_CMD} "$pkg_name"; then
         task_success "${pkg_name} installed successfully."
     else
         task_error_exit "Failed to install ${pkg_name}."
@@ -362,13 +434,20 @@ apply_spicetify_theme_and_extensions() {
 }
 
 main() {
-    script_title "🌶️  Spicetify Setup for Spotify Flatpak on Arch Linux (v${SCRIPT_VERSION}) 🌶️"
+    script_title "🌶️  Spicetify Setup for Spotify Flatpak (v${SCRIPT_VERSION}) 🌶️"
 
+    detect_os
     check_sudo
 
     if ! command_exists "flatpak"; then task_error_exit "Flatpak is not installed."; fi
-    if ! command_exists "gawk"; then install_package "gawk (GNU awk)" "pacman -S --noconfirm gawk" "gawk"; fi
-    install_package "curl" "pacman -S --noconfirm curl" "curl"
+
+    if [[ "$DISTRO_TYPE" == "arch" ]]; then
+        if ! command_exists "gawk"; then install_package "gawk" "gawk"; fi
+    else
+        if ! command_exists "gawk"; then install_package "gawk" "gawk"; fi
+    fi
+
+    install_package "curl" "curl"
 
 
     get_spotify_flatpak_paths

@@ -1,11 +1,11 @@
-# Spice Up Your Spotify on Arch Linux  
+# Spice Up Your Spotify on Linux
 ### The (Mostly) Hands-Off Spicetify Installer – Flatpak Edition
 
-[![Script Version](https://img.shields.io/badge/Script%20Version-v2.3.3-success?style=for-the-badge&logo=bash)](./spicetify.sh)  
-[![GitHub Stars](https://img.shields.io/github/stars/boudywho/easy-spicetify-arch?style=for-the-badge&logo=github&label=Star%20Me!)](https://github.com/boudywho/easy-spicetify-arch/stargazers)  
+[![Script Version](https://img.shields.io/badge/Script%20Version-v2.3.3-success?style=for-the-badge&logo=bash)](./spicetify.sh)
+[![GitHub Stars](https://img.shields.io/github/stars/boudywho/easy-spicetify-arch?style=for-the-badge&logo=github&label=Star%20Me!)](https://github.com/boudywho/easy-spicetify-arch/stargazers)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
 
-**This script exists because I got tired of fighting Spicetify + Flatpak on Arch.**  
+**This script exists because I got tired of fighting Spicetify + Flatpak on Linux.**
 It went through a *lot* of trial and error: broken paths, missing prefs, Flatpak quirks, shell weirdness, you name it. The goal now is simple:
 
 > You run **one script**, it does the annoying parts, and you end up with a customized Spotify + Marketplace.
@@ -18,23 +18,27 @@ If this saves you a couple of hours or some sanity, a ⭐ on GitHub is genuinely
 
 - **End-to-end automation**: Installs dependencies, runs the official Spicetify installer, fixes its config, and applies the patches.
 - **Smart Spotify Flatpak detection**: Finds the correct Spotify Flatpak path (system or user), and wires it into Spicetify.
-- **Safe to re-run**: Idempotent by design. If you run it multiple times, it won’t trash your setup. It just updates/fixes things.
+- **Multi-distro support**: Automatically detects and supports Arch-based (Arch, Manjaro, EndeavourOS, Garuda), Debian-based (Debian, Ubuntu, Linux Mint, Pop!_OS), and Fedora-based (Fedora, RHEL, CentOS, Rocky, AlmaLinux) distributions.
+- **Safe to re-run**: Idempotent by design. If you run it multiple times, it won't trash your setup. It just updates/fixes things.
 - **Nice, readable output**: Color-coded sections, clear steps, and helpful messages instead of a wall of text.
 - **Marketplace ready**: Hooks into the official installer and prompts you to install the Spicetify Marketplace.
 - **Good error reporting**: If something goes wrong (missing prefs, permissions, etc.), the script tries to tell you *what* and *where*.
-- **Reasonably sane Bash**: Structured functions, no wild spaghetti, and tuned for Arch + Flatpak.
+- **Reasonably sane Bash**: Structured functions, no wild spaghetti, and tuned for Linux + Flatpak.
 
 ---
 
 ## 🚀 Recommended: One-Command Install with `spicetify.sh`
 
 ### ✅ Requirements
-- Arch or an Arch-based distro
+- **Supported distributions:**
+  - **Arch-based:** Arch Linux, Manjaro, EndeavourOS, Garuda Linux
+  - **Debian-based:** Debian, Ubuntu, Linux Mint, Pop!_OS
+  - **Fedora-based:** Fedora, RHEL, CentOS, Rocky Linux, AlmaLinux
 - Spotify (Flatpak) from Flathub:
   ```bash
   flatpak install flathub com.spotify.Client
-
-* Basic terminal comfort (copy/paste and running scripts)
+  ```
+- Basic terminal comfort (copy/paste and running scripts)
 
 ### 🧩 Installation Steps
 
@@ -132,8 +136,20 @@ This is just the “what the script automates for you” section.
 
 ### 1. Install prerequisites
 
+**For Arch-based distros:**
 ```bash
 sudo pacman -S curl gawk --noconfirm
+```
+
+**For Debian-based distros:**
+```bash
+sudo apt-get update
+sudo apt-get install curl gawk -y
+```
+
+**For Fedora-based distros:**
+```bash
+sudo dnf install curl gawk -y
 ```
 
 ### 2. Install Spicetify CLI + Marketplace
