@@ -1,16 +1,22 @@
 #!/bin/bash
 
-readonly SCRIPT_VERSION="2.3.3"
+readonly SCRIPT_VERSION="3.0.0"
 readonly SPOTIFY_FLATPAK_ID="com.spotify.Client"
 
+# ANSI Colors
 COLOR_RESET='\033[0m'; COLOR_RED='\033[0;31m'; COLOR_GREEN='\033[0;32m'; COLOR_YELLOW='\033[0;33m'
 COLOR_BLUE='\033[0;34m'; COLOR_PURPLE='\033[0;35m'; COLOR_CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'
 
+# Check for 256 color support
 if [[ "$(tput colors)" -ge 256 ]]; then
     COLOR_SPICETIFY='\033[38;5;199m'
 else
     COLOR_SPICETIFY=$COLOR_PURPLE
 fi
+
+# ==========================================
+# UI / LOGGING FUNCTIONS
+# ==========================================
 
 script_title() {
     printf "\n${COLOR_SPICETIFY}${BOLD}%s${COLOR_RESET}\n" "$1"
@@ -29,10 +35,6 @@ task_detail() {
     printf "    ${DIM}› %s${COLOR_RESET}\n" "$1"
 }
 
-task_info() {
-    printf "  ${COLOR_CYAN}ⓘ %s${COLOR_RESET}\n" "$1"
-}
-
 task_success() {
     printf "  ${COLOR_GREEN}✓ %s${COLOR_RESET}\n" "$1"
 }
@@ -48,13 +50,16 @@ task_error_exit() {
 
 command_exists() { command -v "$1" &>/dev/null; }
 
+# ==========================================
+# SYSTEM & PERMISSION CHECKS
+# ==========================================
+
 check_sudo() {
     if [[ "$EUID" -ne 0 ]]; then
         if ! sudo -n true 2>/dev/null; then
             printf "  ${COLOR_YELLOW}ⓘ Sudo requires a password. Please enter it when prompted.${COLOR_RESET}\n"
             if ! sudo -v; then task_error_exit "Sudo privileges required and could not be obtained."; fi
         fi
-        if ! sudo true; then task_error_exit "Sudo check failed. Cannot execute commands with sudo."; fi
         task_success "Sudo privileges verified."
     else
         task_success "Running as root."
@@ -78,21 +83,70 @@ confirm() {
     done
 }
 
-install_package() {
-    local pkg_name="$1"; local pkg_manager_cmd="$2"; local pkg_check_cmd="${3:-$pkg_name}"
-    section_header "Installing ${pkg_name}"
-    if command_exists "$pkg_check_cmd"; then
-        task_success "${pkg_name} is already installed."
+# ==========================================
+# PACKAGE MANAGEMENT (MULTI-DISTRO)
+# ==========================================
+
+detect_package_manager() {
+    if [[ -f /etc/os-release ]]; then
+        . /etc/os-release
+        OS_ID=$ID
+        OS_LIKE=$ID_LIKE
+    else
+        task_warning "Could not detect OS via /etc/os-release."
+        OS_ID="unknown"
+    fi
+
+    if command_exists "pacman"; then
+        PKG_MANAGER="pacman"
+        PKG_INSTALL_CMD="sudo pacman -S --noconfirm"
+        PKG_UPDATE_CMD="sudo pacman -Sy"
+    elif command_exists "apt-get"; then
+        PKG_MANAGER="apt"
+        PKG_INSTALL_CMD="sudo apt-get install -y"
+        PKG_UPDATE_CMD="sudo apt-get update"
+    elif command_exists "dnf"; then
+        PKG_MANAGER="dnf"
+        PKG_INSTALL_CMD="sudo dnf install -y"
+        PKG_UPDATE_CMD="sudo dnf check-update"
+    else
+        task_error_exit "Unsupported package manager. Please install dependencies manually."
+    fi
+}
+
+install_dependency() {
+    local pkg_name="$1"
+    local check_cmd="${2:-$pkg_name}"
+    
+    # Map generic package names to distro-specific names if necessary
+    if [[ "$PKG_MANAGER" == "apt" && "$pkg_name" == "gawk" ]]; then
+        pkg_name="gawk" # Usually essentially the same, but ensuring explicit naming
+    fi
+
+    if command_exists "$check_cmd"; then
+        task_success "Dependency '${pkg_name}' is already installed."
         return 0
     fi
 
-    task_running "Attempting to install ${pkg_name} via pacman..."
-    if sudo ${pkg_manager_cmd}; then
+    section_header "Installing Dependency: ${pkg_name}"
+    task_running "Detected package manager: ${PKG_MANAGER}"
+    
+    if [[ "$PKG_MANAGER" == "apt" ]]; then
+         task_detail "Updating apt cache first..."
+         $PKG_UPDATE_CMD >/dev/null 2>&1
+    fi
+
+    task_running "Installing ${pkg_name}..."
+    if $PKG_INSTALL_CMD "$pkg_name"; then
         task_success "${pkg_name} installed successfully."
     else
-        task_error_exit "Failed to install ${pkg_name}."
+        task_error_exit "Failed to install ${pkg_name} using ${PKG_MANAGER}."
     fi
 }
+
+# ==========================================
+# SPICETIFY INSTALLATION
+# ==========================================
 
 install_spicetify_cli() {
     section_header "Spicetify CLI Installation"
@@ -102,86 +156,84 @@ install_spicetify_cli() {
     fi
 
     if command_exists "spicetify"; then
-        if ! confirm "Spicetify CLI seems installed. Re-run its installer (for updates & Marketplace)?" "y/N" "N"; then
-            task_success "Spicetify CLI already installed. Skipping installer."
+        if ! confirm "Spicetify CLI seems installed. Re-run installer (updates & Marketplace)?" "y/N" "N"; then
+            task_success "Skipping Spicetify CLI installation."
             return 0
         fi
-        task_running "Proceeding with Spicetify CLI re-installation/update..."
+        task_running "Proceeding with re-installation/update..."
     fi
 
-    task_running "Executing Spicetify's official installer script..."
-    task_detail "This script will handle downloads, PATH setup, and Marketplace."
+    task_running "Downloading and executing Spicetify installer..."
+    task_detail "This handles downloads, PATH setup, and Marketplace."
 
+    # Set paths for the installer to pick up
     export SPOTIFY_PATH="$SPOTIFY_APP_FILES_PATH"
     export PREFS_PATH="$SPOTIFY_PREFS_PATH"
 
     echo
     local installer_exit_code=0
-    bash <(curl -fsSL https://raw.githubusercontent.com/spicetify/spicetify-cli/master/install.sh) || installer_exit_code=$?
+    curl -fsSL https://raw.githubusercontent.com/spicetify/spicetify-cli/master/install.sh | sh || installer_exit_code=$?
     echo
 
     if [[ $installer_exit_code -eq 0 ]]; then
         task_success "Spicetify CLI installer script finished."
     else
-        task_warning "Spicetify CLI installer script finished with exit code ${installer_exit_code}."
-        task_detail "This is common if the marketplace install step failed inside the installer."
+        task_warning "Installer finished with exit code ${installer_exit_code}."
     fi
 
-    task_running "Updating PATH for the current session..."
-
+    # Ensure PATH is updated for current session logic
     if [[ -d "$HOME/.spicetify" ]]; then
         export PATH="$HOME/.spicetify:$PATH"
-        task_success "Added $HOME/.spicetify to PATH."
-    else
-        task_warning "$HOME/.spicetify directory not found."
     fi
 
     if ! command_exists "spicetify"; then
-        task_error_exit "Spicetify CLI not found in PATH after install. Check manually."
+        task_error_exit "Spicetify CLI not found in PATH after install."
     fi
-    task_success "Spicetify CLI is now available in PATH."
+    task_success "Spicetify CLI available."
 
-    if [[ $installer_exit_code -eq 127 ]]; then
-        task_running "Attempting to install Marketplace manually..."
-        curl -fsSL https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh | bash
+    # Marketplace manual fallback
+    if [[ $installer_exit_code -ne 0 ]]; then
+        task_running "Attempting manual Marketplace install (curl pipe)..."
+        curl -fsSL https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh | sh
     fi
 }
 
+# ==========================================
+# FLATPAK DISCOVERY & PERMISSIONS
+# ==========================================
+
 get_spotify_flatpak_paths() {
     section_header "Locating Spotify Flatpak"
-    if ! command_exists "flatpak"; then task_error_exit "Flatpak command not found."; fi
-
+    
     local flatpak_location_cmd_output=""
-    task_running "Attempting to get Spotify Flatpak location using 'sudo flatpak info --show-location'..."
-    flatpak_location_cmd_output=$(sudo flatpak info --show-location "${SPOTIFY_FLATPAK_ID}" 2>/dev/null)
+    task_running "Querying Flatpak for Spotify location..."
+    
+    # Try system install first
+    flatpak_location_cmd_output=$(flatpak info --show-location "${SPOTIFY_FLATPAK_ID}" 2>/dev/null)
+    
+    if [[ -z "$flatpak_location_cmd_output" ]]; then
+        # Try sudo if user level failed (rare but possible with weird permissions)
+        flatpak_location_cmd_output=$(sudo flatpak info --show-location "${SPOTIFY_FLATPAK_ID}" 2>/dev/null)
+    fi
 
     if [[ -n "$flatpak_location_cmd_output" && -d "$flatpak_location_cmd_output" ]]; then
         SPOTIFY_FLATPAK_LOCATION="$flatpak_location_cmd_output"
-        task_success "Found Flatpak system location: ${SPOTIFY_FLATPAK_LOCATION}"
+        task_success "Found Flatpak location: ${SPOTIFY_FLATPAK_LOCATION}"
     else
-        task_warning "'sudo flatpak info --show-location' failed or returned invalid path."
-        task_detail "Output: '${flatpak_location_cmd_output}'"
-        task_running "Attempting 'flatpak info --show-location' (no sudo, for user install)..."
-        flatpak_location_cmd_output=$(flatpak info --show-location "${SPOTIFY_FLATPAK_ID}" 2>/dev/null)
-        if [[ -n "$flatpak_location_cmd_output" && -d "$flatpak_location_cmd_output" ]]; then
-            SPOTIFY_FLATPAK_LOCATION="$flatpak_location_cmd_output"
-            task_success "Found Flatpak user location: ${SPOTIFY_FLATPAK_LOCATION}"
-        else
-            task_detail "Output: '${flatpak_location_cmd_output}'"
-            task_error_exit "All 'flatpak info --show-location' attempts failed."
-        fi
+        task_error_exit "Could not find Spotify Flatpak location. Is it installed? (com.spotify.Client)"
     fi
 
+    # Standard Flatpak paths
     SPOTIFY_APP_FILES_PATH="${SPOTIFY_FLATPAK_LOCATION}/files/extra/share/spotify"
     local alt_app_files_path="${SPOTIFY_FLATPAK_LOCATION}/files/share/spotify"
 
     if [[ -d "$SPOTIFY_APP_FILES_PATH" ]]; then
-        task_detail "Spotify app files dir target: ${SPOTIFY_APP_FILES_PATH}"
+        task_detail "Target: ${SPOTIFY_APP_FILES_PATH}"
     elif [[ -d "$alt_app_files_path" ]]; then
-        task_detail "Primary app files path not found. Using alternative: ${alt_app_files_path}"
+        task_detail "Using alternate path: ${alt_app_files_path}"
         SPOTIFY_APP_FILES_PATH="$alt_app_files_path"
     else
-        task_detail "Spotify app files dir NOT found. Will try to use/create: ${SPOTIFY_APP_FILES_PATH}"
+        task_warning "Spotify files directory not found. Will attempt to create/use: ${SPOTIFY_APP_FILES_PATH}"
     fi
 
     SPOTIFY_PREFS_PATH="${HOME}/.var/app/${SPOTIFY_FLATPAK_ID}/config/spotify/prefs"
@@ -189,7 +241,7 @@ get_spotify_flatpak_paths() {
         task_warning "Spotify prefs file NOT found: ${SPOTIFY_PREFS_PATH}."
         task_detail "Run Spotify once to generate it."
     else
-        task_success "Spotify prefs file found: ${SPOTIFY_PREFS_PATH}"
+        task_success "Prefs found: ${SPOTIFY_PREFS_PATH}"
     fi
 
     export SPOTIFY_APP_FILES_PATH SPOTIFY_PREFS_PATH
@@ -197,208 +249,98 @@ get_spotify_flatpak_paths() {
 
 grant_permissions() {
     section_header "Granting Filesystem Permissions"
-    if [[ -z "$SPOTIFY_APP_FILES_PATH" ]]; then
-        task_warning "Spotify app files path not set. Skipping permissions."
-        return 1
-    fi
-
+    
     if [[ ! -d "${SPOTIFY_APP_FILES_PATH}" ]]; then
-        task_running "Target app files directory does not exist. Creating: ${SPOTIFY_APP_FILES_PATH}"
-        if ! sudo mkdir -p "${SPOTIFY_APP_FILES_PATH}"; then task_error_exit "Failed to create directory ${SPOTIFY_APP_FILES_PATH}."; fi
-        task_success "Created directory: ${SPOTIFY_APP_FILES_PATH}"
+        task_running "Creating app directory: ${SPOTIFY_APP_FILES_PATH}"
+        sudo mkdir -p "${SPOTIFY_APP_FILES_PATH}"
     fi
 
-    task_running "Setting permissions on: ${SPOTIFY_APP_FILES_PATH}"
-    if ! sudo chmod a+wr "${SPOTIFY_APP_FILES_PATH}"; then task_error_exit "chmod failed for ${SPOTIFY_APP_FILES_PATH}"; fi
-    task_success "Permissions set for ${SPOTIFY_APP_FILES_PATH}"
-
-    local spotify_apps_subdir="${SPOTIFY_APP_FILES_PATH}/Apps"
-    if [[ -d "${spotify_apps_subdir}" ]]; then
-        task_running "Setting permissions on: ${spotify_apps_subdir}"
-        if ! sudo chmod a+wr -R "${spotify_apps_subdir}"; then task_error_exit "chmod failed for ${spotify_apps_subdir}"; fi
-        task_success "Permissions set for ${spotify_apps_subdir}"
-    else
-        task_detail "${spotify_apps_subdir} not found. Spicetify should create it if needed."
+    task_running "Setting write permissions on Spotify directory..."
+    # Using chmod a+wr to allow Spicetify (running as user) to modify Flatpak files (owned by root)
+    if ! sudo chmod -R a+wr "${SPOTIFY_APP_FILES_PATH}"; then 
+        task_error_exit "chmod failed for ${SPOTIFY_APP_FILES_PATH}"; 
     fi
-    return 0
+    task_success "Permissions set successfully."
 }
+
+# ==========================================
+# CONFIGURATION & APPLY
+# ==========================================
 
 configure_and_backup_spicetify() {
-    section_header "Configuring Spicetify & Applying Patches"
-    if ! command_exists "spicetify"; then task_error_exit "Spicetify command not found."; fi
-
+    section_header "Configuring Spicetify"
+    
     local spicetify_config_file
-    spicetify_config_file="$(spicetify -c 2>/dev/null || true)"
-    if [[ -z "$spicetify_config_file" ]]; then
-        spicetify_config_file="$HOME/.config/spicetify/config-xpui.ini"
-    fi
+    spicetify_config_file="$(spicetify -c 2>/dev/null || echo "$HOME/.config/spicetify/config-xpui.ini")"
     mkdir -p "$(dirname "$spicetify_config_file")"
 
-    task_running "Ensuring Spicetify base config file exists..."
+    # Generate config if missing
     if [[ ! -f "$spicetify_config_file" ]]; then
-        task_detail "Spicetify config not found. Running 'spicetify backup' to generate it."
-        if ! spicetify backup >/dev/null 2>&1; then
-            if ! spicetify >/dev/null 2>&1 && [[ ! -f "$spicetify_config_file" ]]; then
-                task_warning "Failed to auto-generate Spicetify config via 'spicetify' command."
-            fi
-        fi
-        if [[ -f "$spicetify_config_file" ]]; then
-            task_success "Spicetify config file generated/found."
+        task_running "Generating initial config..."
+        spicetify config current_theme "SpicetifyDefault" >/dev/null 2>&1
+        spicetify config color_scheme " " >/dev/null 2>&1
+    fi
+
+    # Set Paths
+    task_running "Setting Spicetify paths..."
+    spicetify config prefs_path "$SPOTIFY_PREFS_PATH" >/dev/null 2>&1
+    spicetify config spotify_path "$SPOTIFY_APP_FILES_PATH" >/dev/null 2>&1
+    
+    # Flatpak Specific Settings
+    spicetify config inject_css 1 replace_colors 1 overwrite_assets 1 >/dev/null 2>&1
+    
+    # Preprocesses
+    spicetify config disable_sentry 1 disable_ui_logging 1 disable_upgrade_notice 1 >/dev/null 2>&1
+
+    task_success "Configuration updated."
+
+    # Backup & Apply
+    if [[ -f "$SPOTIFY_PREFS_PATH" ]]; then
+        section_header "Backup and Apply"
+        task_running "Backing up and applying (this may take a moment)..."
+        echo
+        spicetify backup apply
+        if [[ $? -eq 0 ]]; then
+            task_success "Spicetify applied successfully."
         else
-            task_warning "Spicetify config still not found. Creating a minimal one."
-            printf '%s\n' \
-                "[Setting]" \
-                "current_theme=SpicetifyDefault" \
-                "color_scheme=" \
-                "prefs_path=${SPOTIFY_PREFS_PATH:-}" \
-                "spotify_path=${SPOTIFY_APP_FILES_PATH:-}" \
-                "inject_css=1" \
-                "replace_colors=1" \
-                "overwrite_assets=0" \
-                "spotify_launch_flags=" \
-                "check_spicetify_upgrade=0" \
-                "" \
-                "[Preprocesses]" \
-                "disable_sentry=1" \
-                "disable_ui_logging=1" \
-                "remove_rtl_rule=1" \
-                "expose_apis=1" \
-                "disable_upgrade_notice=1" \
-                "" \
-                "[AdditionalOptions]" \
-                "custom_apps=" \
-                "sidebar_config=1" \
-                "home_config=1" \
-                "experimental_features=0" \
-                "" \
-                "[Patch]" > "$spicetify_config_file"
-            task_success "Minimal Spicetify config created."
+            task_error_exit "Backup/Apply failed. Check output above."
         fi
     else
-        task_detail "Spicetify config file already exists: ${spicetify_config_file}."
+        task_warning "Skipping 'backup apply' because prefs file is missing."
     fi
-
-    if [[ -n "$SPOTIFY_PREFS_PATH" && -f "$SPOTIFY_PREFS_PATH" ]]; then
-        task_running "Force-setting 'prefs_path' in Spicetify config..."
-        if grep -Eq '^[# ]*prefs_path[[:space:]]*=' "$spicetify_config_file"; then
-            sed -i.bak "s|^[# ]*prefs_path[[:space:]]*=.*|prefs_path = ${SPOTIFY_PREFS_PATH}|" "$spicetify_config_file"
-        else
-            if grep -q '^\[Setting\]' "$spicetify_config_file"; then
-                sed -i "/^\[Setting\]/a prefs_path = ${SPOTIFY_PREFS_PATH}" "$spicetify_config_file"
-            else
-                printf '%s\n' "[Setting]" "prefs_path = ${SPOTIFY_PREFS_PATH}" >> "$spicetify_config_file"
-            fi
-        fi
-        task_success "Verified 'prefs_path' in config."
-    else
-        task_warning "Spotify prefs file not found. Cannot force-set 'prefs_path'."
-    fi
-
-    if [[ -n "$SPOTIFY_APP_FILES_PATH" ]]; then
-        task_running "Force-setting 'spotify_path' in Spicetify config..."
-        if grep -Eq '^[# ]*spotify_path[[:space:]]*=' "$spicetify_config_file"; then
-            sed -i.bak "s|^[# ]*spotify_path[[:space:]]*=.*|spotify_path = ${SPOTIFY_APP_FILES_PATH}|" "$spicetify_config_file"
-        else
-            if grep -q '^\[Setting\]' "$spicetify_config_file"; then
-                sed -i "/^\[Setting\]/a spotify_path = ${SPOTIFY_APP_FILES_PATH}" "$spicetify_config_file"
-            else
-                printf '%s\n' "[Setting]" "spotify_path = ${SPOTIFY_APP_FILES_PATH}" >> "$spicetify_config_file"
-            fi
-        fi
-        task_success "Verified 'spotify_path' in config."
-    else
-        task_warning "SPOTIFY_APP_FILES_PATH not set. Cannot force-set 'spotify_path'."
-    fi
-
-    task_running "Resetting color_scheme to auto (prevents 'scheme not found' warnings)..."
-    if grep -Eq '^[# ]*color_scheme[[:space:]]*=' "$spicetify_config_file"; then
-        sed -i.bak "s|^[# ]*color_scheme[[:space:]]*=.*|color_scheme = |" "$spicetify_config_file"
-    else
-        if grep -q '^\[Setting\]' "$spicetify_config_file"; then
-            sed -i "/^\[Setting\]/a color_scheme = " "$spicetify_config_file"
-        fi
-    fi
-
-    if [[ -z "$SPOTIFY_PREFS_PATH" || ! -f "$SPOTIFY_PREFS_PATH" ]]; then
-        task_warning "Spotify 'prefs' file ('${SPOTIFY_PREFS_PATH:-not found}') is STILL missing."
-        task_detail "'spicetify backup apply' will fail. Please run Spotify (Flatpak) at least once."
-        if ! confirm "Attempt Spicetify operations anyway?" "y/N" "N"; then
-            task_error_exit "Aborted due to missing prefs file."
-        fi
-    fi
-
-    task_running "Attempting to restore Spotify to vanilla state (if already patched)..."
-    echo
-    if spicetify restore; then
-        task_success "Spotify restored to vanilla (or was already vanilla)."
-    else
-        task_warning "Could not restore Spotify (normal if never patched/backup missing)."
-    fi
-    echo
-
-    task_running "Running 'spicetify backup apply' (with paths pre-configured)..."
-    task_detail "This is the main patching step. Please wait..."
-    echo
-    if spicetify backup apply; then
-        task_success "'spicetify backup apply' command completed."
-    else
-        task_error_exit "'spicetify backup apply' FAILED. Check Spicetify's output above."
-    fi
-    echo
-}
-
-apply_spicetify_theme_and_extensions() {
-    section_header "Applying Spicetify Theme & Extensions"
-    if ! command_exists "spicetify"; then task_error_exit "Spicetify command not found."; fi
-
-    task_running "Running 'spicetify apply' to activate customizations..."
-    echo
-    if spicetify apply; then
-        task_success "'spicetify apply' successful! Spotify is spiced up."
-    else
-        task_error_exit "Failed to 'spicetify apply'. Check Spicetify's output above."
-    fi
-    echo
 }
 
 main() {
-    script_title "🌶️  Spicetify Setup for Spotify Flatpak on Arch Linux (v${SCRIPT_VERSION}) 🌶️"
+    script_title "🌶️  Spicetify for Flatpak (Universal Linux) v${SCRIPT_VERSION} 🌶️"
 
     check_sudo
+    detect_package_manager
 
-    if ! command_exists "flatpak"; then task_error_exit "Flatpak is not installed."; fi
-    if ! command_exists "gawk"; then install_package "gawk (GNU awk)" "pacman -S --noconfirm gawk" "gawk"; fi
-    install_package "curl" "pacman -S --noconfirm curl" "curl"
+    # 1. Check Dependencies
+    if ! command_exists "flatpak"; then 
+        task_error_exit "Flatpak is not installed. Please install Flatpak and Spotify first."; 
+    fi
+    
+    install_dependency "curl"
+    install_dependency "gawk" # GNU Awk is required by Spicetify
 
-
+    # 2. Locate Spotify
     get_spotify_flatpak_paths
 
+    # 3. Permissions
     if ! grant_permissions; then
-        task_warning "Permissions granting encountered issues. Spicetify might fail."
-        if ! confirm "Continue with setup despite potential permission issues?" "y/N" "N"; then
-            task_error_exit "Aborted by user due to permission concerns."
-        fi
+        task_error_exit "Failed to set permissions."
     fi
 
+    # 4. Install CLI
     install_spicetify_cli
 
+    # 5. Configure & Patch
     configure_and_backup_spicetify
-    apply_spicetify_theme_and_extensions
 
-    printf "\n${COLOR_GREEN}${BOLD}🎉 All done! Spotify should now be spiced up!${COLOR_RESET}\n"
-    printf "  ${COLOR_SPICETIFY}ⓘ Restart Spotify to see the changes.${COLOR_RESET}\n"
     echo
-    printf "${COLOR_BLUE}${BOLD}  Next Steps & Tips:${COLOR_RESET}\n"
-
-    task_detail "Manage themes: ${COLOR_CYAN}spicetify config current_theme THEME_NAME${DIM}"
-    task_detail "Explore Marketplace: Open Spotify (Marketplace item in left panel)."
-    task_detail "Spicetify help: ${COLOR_CYAN}spicetify --help${DIM}"
-    echo
-    task_warning "If issues persist:"
-    task_detail " 1. Ensure Spotify (Flatpak) has run AT LEAST ONCE to create '${SPOTIFY_PREFS_PATH:-prefs file}'."
-    task_detail " 2. Check permissions on '${SPOTIFY_APP_FILES_PATH:-Spotify app files path}'."
-    task_detail " 3. Examine '${HOME}/.config/spicetify/config-xpui.ini' for correct paths."
-    task_detail " 4. Try running Spicetify commands manually (e.g., 'spicetify restore', 'spicetify backup apply', 'spicetify apply')."
+    printf "${COLOR_GREEN}${BOLD}🎉 Installation Complete!${COLOR_RESET}\n"
+    printf "  ${COLOR_SPICETIFY}Restart Spotify to see changes.${COLOR_RESET}\n"
 }
 
 main "$@"
