@@ -1,231 +1,73 @@
-# Spice Up Your Spotify on Arch Linux  
-### The (Mostly) Hands-Off Spicetify Installer – Flatpak Edition
+# 🌶️ Spicetify Flatpak Automator
 
-[![Script Version](https://img.shields.io/badge/Script%20Version-v2.3.3-success?style=for-the-badge&logo=bash)](./spicetify.sh)  
-[![GitHub Stars](https://img.shields.io/github/stars/boudywho/easy-spicetify-arch?style=for-the-badge&logo=github&label=Star%20Me!)](https://github.com/boudywho/easy-spicetify-arch/stargazers)  
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
-
-**This script exists because I got tired of fighting Spicetify + Flatpak on Arch.**  
-It went through a *lot* of trial and error: broken paths, missing prefs, Flatpak quirks, shell weirdness, you name it. The goal now is simple:
-
-> You run **one script**, it does the annoying parts, and you end up with a customized Spotify + Marketplace.
-
-If this saves you a couple of hours or some sanity, a ⭐ on GitHub is genuinely appreciated and helps me keep polishing it.
+**One script to fix Spicetify + Flatpak headaches.**
+Automate the installation of Spicetify, fix permissions, and setup the Marketplace on your Spotify Flatpak.
 
 ---
 
-## ✨ What the `spicetify.sh` Script Does for You
+## 📦 Choose Your Distro
 
-- **End-to-end automation**: Installs dependencies, runs the official Spicetify installer, fixes its config, and applies the patches.
-- **Smart Spotify Flatpak detection**: Finds the correct Spotify Flatpak path (system or user), and wires it into Spicetify.
-- **Safe to re-run**: Idempotent by design. If you run it multiple times, it won’t trash your setup. It just updates/fixes things.
-- **Nice, readable output**: Color-coded sections, clear steps, and helpful messages instead of a wall of text.
-- **Marketplace ready**: Hooks into the official installer and prompts you to install the Spicetify Marketplace.
-- **Good error reporting**: If something goes wrong (missing prefs, permissions, etc.), the script tries to tell you *what* and *where*.
-- **Reasonably sane Bash**: Structured functions, no wild spaghetti, and tuned for Arch + Flatpak.
+### ✅ Requirements (All Distros)
 
----
-
-## 🚀 Recommended: One-Command Install with `spicetify.sh`
-
-### ✅ Requirements
-- Arch or an Arch-based distro
-- Spotify (Flatpak) from Flathub:
-  ```bash
-  flatpak install flathub com.spotify.Client
-
-* Basic terminal comfort (copy/paste and running scripts)
-
-### 🧩 Installation Steps
-
-1. **Clone the repo**
-
-   ```bash
-   git clone https://github.com/boudywho/easy-spicetify-arch.git
-   cd easy-spicetify-arch
-   ```
-2. **Make the script executable**
-
-   ```bash
-   chmod +x spicetify.sh
-   ```
-3. **Run it**
-
-   ```bash
-   ./spicetify.sh
-   ```
-
-   During the run:
-
-   * It may ask for your `sudo` password to install missing tools and fix permissions.
-   * When the Spicetify CLI prompt appears:
-
-     > Do you want to install spicetify Marketplace? (Y/n)
-     > Type `y` unless you really don’t want it.
-4. **Restart Spotify**
-   Close Spotify and open it again. You should see your theme + Marketplace. (usually as a new entry in the left sidebar).
-
----
-
-## 🛠️ Troubleshooting (With the Script)
-
-Most issues fall into one of these buckets:
-
-### 🧩 “Cannot detect Spotify prefs file” / `prefs_path` complaints
-
-* Make sure you have **run Spotify at least once**:
-
-  ```bash
-  flatpak run com.spotify.Client
-  ```
-
-  Then close it and re-run:
-
-  ```bash
-  ./spicetify.sh
-  ```
-
-* The script now:
-
-  * Detects Spotify’s Flatpak path
-  * Detects your prefs file
-  * Forces `prefs_path` and `spotify_path` into the Spicetify config it actually uses.
-
-If you still see prefs errors after a full run, open an issue and paste the full output.
-
----
-
-### 🔐 Permission issues
-
-If Spicetify complains about writing/patching:
-
-* The script already does:
-
-  ```bash
-  sudo chmod a+wr -R /var/lib/flatpak/app/com.spotify.Client/.../files/extra/share/spotify
-  ```
-
-  and the `Apps` directory under it.
-
-If you’re still stuck, include the exact error message in a GitHub issue.
-
----
-
-### 🧾 Need help?
-
-If anything looks off or half-works:
-
-* Open an issue here:
-  👉 [https://github.com/boudywho/spicetify-arch-installation-guide/issues](https://github.com/boudywho/spicetify-arch-installation-guide/issues)
-* Please include:
-
-  * Script version (e.g. `v2.2.2`)
-  * Your distro / DE
-  * The **full** script output (pasted as a code block or attached)
-
----
-
-## 🧠 Manual Installation (For Curious / Advanced Users)
-
-You *don’t* need this if you use the script.
-This is just the “what the script automates for you” section.
-
-### 1. Install prerequisites
+You must have the **Spotify Flatpak** installed and run at least once.
 
 ```bash
-sudo pacman -S curl gawk --noconfirm
+flatpak install flathub com.spotify.Client
+flatpak run com.spotify.Client # Open once to generate config files, then close it.
+
 ```
 
-### 2. Install Spicetify CLI + Marketplace
+### 🐧 Option 1: Arch Linux (Stable)
+
+*Works with Arch, Manjaro, EndeavourOS, etc.*
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/spicetify/spicetify-cli/master/install.sh | bash
+# 1. Clone the repository
+git clone https://github.com/boudywho/easy-spicetify-arch.git
+cd easy-spicetify-arch
+
+# 2. Make executable
+chmod +x spicetify.sh
+
+# 3. Run
+./spicetify.sh
+
 ```
 
-Follow the prompts, and make sure `spicetify` ends up in your `PATH`.
+### 🎩 Option 2: Fedora & Debian (Needs Testing)
 
-### 3. Find Spotify’s Flatpak paths
+*Currently in Beta. Please report any issues!*
 
-**Spotify install path:**
+1. Download the **Source code (zip)** from the [Latest Pre-release](https://github.com/boudywho/easy-spicetify-arch/releases/tag/v3.0.0).
+2. Extract the folder and open your terminal inside it.
+3. Run the following:
 
 ```bash
-sudo flatpak info --show-location com.spotify.Client
-# or, if installed per-user:
-# flatpak info --show-location com.spotify.Client
-```
+# 1. Make executable
+chmod +x spicetify.sh
 
-The **spotify_path** is usually:
+# 2. Run
+./spicetify.sh
 
-```text
-<that_location>/files/extra/share/spotify
-# or sometimes:
-<that_location>/files/share/spotify
-```
-
-**Spotify prefs path:**
-
-Usually:
-
-```bash
-~/.var/app/com.spotify.Client/config/spotify/prefs
-```
-
-(Again, this file only exists after you’ve run Spotify at least once.)
-
-### 4. Configure Spicetify
-
-Let Spicetify know where Spotify and your prefs live:
-
-```bash
-spicetify config spotify_path /your/spotify/path
-spicetify config prefs_path /your/prefs/path
-```
-
-You can confirm which config file Spicetify uses with:
-
-```bash
-spicetify -c
-```
-
-### 5. Fix permissions
-
-Replace `<Spotify App Files Path>` with your actual path from step 3:
-
-```bash
-sudo chmod a+wr -R "<Spotify App Files Path>"
-sudo chmod a+wr -R "<Spotify App Files Path>/Apps"
-```
-
-### 6. Apply Spicetify
-
-```bash
-spicetify restore
-spicetify backup apply
-spicetify apply
 ```
 
 ---
 
-## 🎨 Customizing Spotify Afterward
+## ✨ What does this do?
 
-Once everything is patched:
-
-* Open Spotify and look for the **Marketplace** entry in the sidebar
-
-  * Browse themes, extensions, and custom apps
-* Use the CLI for quick tweaks, e.g.:
-
-  ```bash
-  spicetify config current_theme marketplace
-  spicetify config color_scheme dark
-  spicetify apply
-  ```
-* For more options:
-
-  ```bash
-  spicetify --help
-  ```
+* **Automates Everything:** Downloads Spicetify, installs dependencies, and patches the app.
+* **Finds Paths:** Automatically detects where Flatpak hid your Spotify installation.
+* **Fixes Permissions:** Handles the annoyingly complex Flatpak permission issues for you.
+* **Marketplace:** Prompts you to install the Spicetify Marketplace automatically.
 
 ---
 
-## [**📜 Changelog – spicetify.sh**](./changelog.md)
+## 🛠️ Troubleshooting
+
+**"Cannot detect Spotify prefs file"**
+
+> You must open Spotify at least once before running the script so it creates the necessary config files.
+
+**Permission Errors**
+
+> The script tries to fix these automatically. If it fails, try running the script again, check the issues tab or report the [issue](https://github.com/boudywho/easy-spicetify-arch/issues) yourself :).
