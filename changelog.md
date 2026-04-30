@@ -1,102 +1,67 @@
-## **📜 Changelog – spicetify.sh**
+# Changelog
 
-### **v2.3.3 – Permissions & Installation Order Fix**
+All notable changes to the Spicetify Flatpak Automator will be documented in this file.
 
-* **Crucial Fix:** Changed the order of operations. The script now grants filesystem permissions **before** running the Spicetify installer. This prevents the "fatal: permission denied" error when the installer tries to apply patches immediately.  
-* **Color Scheme:** Reset color\_scheme to auto/empty to prevent "scheme not found" warnings on fresh installs.
+## [3.0.4] - 2026-04-30
+### Added
+- **Auto-Kill Spotify:** Added a `kill_spotify` function that silently checks if the Spotify Flatpak is running in the background and automatically terminates it. This prevents file lock errors when the script attempts to patch or restore Spotify files.
+- Added automatic hooks to ensure Spotify is closed right before configuring, patching, and applying the theme.
 
-### **v2.3.2 – Config Polish**
+## [3.0.3] - 2026-04-30
+### Fixed
+- **Color Rendering Bug:** Fixed an issue where the terminal would print raw ANSI escape codes (e.g., `\033[0;36m`) instead of actual colors in the "Next Steps" output at the end of the script. Replaced `%s` with `%b` in the UI helper functions to correctly parse string escape sequences.
 
-* **Warning Fix:** Addressed the "Color scheme 'dark' not found" warning by ensuring the config defaults to a valid scheme or auto-detection.
+## [3.0.2] - 2026-04-30
+### Added
+- **Dependency check for `unzip`**: Added `unzip` to the automated package installation checks, as it is strictly required by the official Spicetify Marketplace installer.
 
-### **v2.3.1 – PATH & Shell Fixes**
+### Changed
+- Improved Spicetify install command execution by downloading to a temporary file (`mktemp`). This preserves terminal standard input, allowing users to interactively answer the "Install Marketplace?" prompt without issues.
 
-* **PATH Reliability:** Stopped relying on sourcing .bashrc or .zshrc to find the spicetify binary, which often failed in non-interactive modes. The script now explicitly adds \~/.spicetify to the PATH for the current session.  
-* **Marketplace Fallback:** Added a manual trigger for the Marketplace installer if the main installer exits with code 127 (command not found).
+### Fixed
+- **Marketplace Crash Loophole:** Fixed a bug where installing the Spicetify Marketplace would cause the script to abort prematurely. The Marketplace installer runs `spicetify apply` at the end, which throws an error code because the Flatpak paths aren't configured yet. The script now correctly anticipates and bypasses this specific error.
 
-### **v2.3.0 — Major Reliability Update**
+## [3.0.1] - 2026-04-30
+### Added
+- **Sudo Execution Safeguard:** Added a check that prevents users from running the entire script as root (e.g., `sudo ./script.sh`), which breaks local directory configurations. The script now explicitly tells the user to run it normally, as it handles privilege escalation internally when needed.
 
-A focused stability release that fixes shell-related exits, config mismatches, and Marketplace setup issues. Most users should now get a smooth **one-run installation**, even on Zsh.
+### Changed
+- **Flatpak Install Flow:** If Flatpak is not installed, the script will offer to install it but will now safely exit afterward with instructions to install Spotify manually, preventing a crash from trying to immediately locate a non-existent Spotify instance.
 
-* **Correct shell detection:** Uses $SHELL to avoid sourcing the wrong rc file, fixing the Zsh exit 127 issue.  
-* **Safe rc sourcing:** Applies set \+e after loading shell configs to prevent user-defined options from breaking the installer.  
-* **Reliable config handling:** Automatically detects and edits the correct Spicetify config file using spicetify \-c.  
-* **Marketplace installs on first run:** Improved initialization ensures stable patching and consistent Marketplace setup.
+### Fixed
+- **Silent Network Failures:** Fixed a critical flaw where a failure to download the Spicetify script via `curl` would pass an empty string to `bash`, resulting in a false "Success" message. Errors are now properly caught and exit the script.
+- **`chmod` Syntax Issue:** Corrected POSIX compliance for the `chmod` command (changed `chmod a+wr -R` to `chmod -R a+wr`) which previously threw invalid operand errors on some environments.
+- **Fish Shell Config Bug:** Fixed an issue where persistent PATH exporting for the Fish shell would fail if the user's `~/.config/fish` directory had never been created.
 
-### **v2.2.2 – Fixes**
+## [3.0.0] - Universal Release
+### Added
+- **Universal Distro Support:** The script is no longer fragmented into two files. It dynamically detects `pacman`, `apt`, `dnf`, `yum`, or `zypper` and acts accordingly.
+- Native PATH persistence handling for `bash`, `zsh`, and `fish` shells.
+- Completely rewritten codebase for enhanced UI layout and helper logic.
 
-* Fixed errors, script is back to working again.  
-* Minor polish to keep output consistent and readable.
+## [2.3.3] - 2025-02-12
+### Fixed
+- Changed the order of operations. The script now grants filesystem permissions **before** running the Spicetify installer. This prevents the "fatal: permission denied" error when the installer tries to apply patches immediately.
+- Reset `color_scheme` to auto/empty to prevent "scheme not found" warnings on fresh installs.
 
-### **v2.2.1 – Output polish**
+## [2.3.2] - 2025-02-11
+### Fixed
+- Addressed the "Color scheme 'dark' not found" warning by ensuring the config defaults to a valid scheme or auto-detection.
 
-* Fixed some task\_detail lines to render ANSI codes exactly as intended.  
-* Simplified grep checks in configure\_and\_backup\_spicetify to use grep \-Fq for path verification.
+## [2.3.1] - 2025-02-11
+### Fixed
+- Stopped relying on sourcing `.bashrc` or `.zshrc` to find the spicetify binary, which often failed in non-interactive modes. The script now explicitly adds `~/.spicetify` to the PATH for the current session.
+- Added a manual trigger for the Marketplace installer if the main installer exits with code 127.
 
-### **v2.2.0 – New output system**
+## [2.3.0] - 2025-02-09
+### Changed
+- **Major Reliability Update**: Correct shell detection uses `$SHELL` to avoid sourcing the wrong rc file.
+- Applies `set +e` after loading shell configs to prevent user-defined options from breaking the installer.
+- Automatically detects and edits the correct Spicetify config file using `spicetify -c`.
 
-* Replaced ad-hoc echo spam with structured output helpers:  
-  * script\_title, section\_header, task\_running, task\_detail, task\_info,  
-    task\_success, task\_warning, task\_error\_exit  
-* Introduced a more consistent color scheme and layout for better readability.  
-* Improved interactive prompt UX in confirm.
+## [2.2.0] - 2025-02-08
+### Changed
+- Replaced ad-hoc echo spam with structured output helpers (`script_title`, `task_running`, etc).
+- Introduced a more consistent color scheme and layout for better readability.
 
-### **v2.1.9 – Config check robustness**
-
-* Tightened grep patterns around config verification to better handle weird spacing.
-
-### **v2.1.8 – Idempotent and first-run friendly**
-
-* Always tries spicetify restore before spicetify backup apply to ensure a clean base.  
-* Switched sed to use | as a delimiter to avoid conflicts with paths.  
-* Verified config edits with exact string checks.
-
-### **v2.1.7 – Sudo check fix**
-
-* Fixed a bug in check\_sudo that could prevent the script from running.  
-* Slightly improved path escaping for sed replacements.
-
-### **v2.1.6 – The big config breakthrough**
-
-* Guaranteed a base config-xpui.ini exists (creates a minimal one if needed).  
-* Explicitly forces prefs\_path and spotify\_path into the config before running spicetify backup apply.  
-* This change dramatically improved reliability with Flatpak builds.
-
-### **v2.1.5 – Reliable Flatpak path detection**
-
-* Switched get\_spotify\_flatpak\_paths to use:  
-  flatpak info \--show-location com.spotify.Client
-
-* Kept fallback logic for edge cases but this covers most setups cleanly.
-
-### **v2.1.4 – Extra Flatpak debugging**
-
-* Improved diagnostics around flatpak info when paths couldn’t be detected.  
-* Helped track down several earlier bugs.
-
-### **v2.1.3 – Path parsing improvements**
-
-* Swapped naive parsing with gawk and proper fallbacks.  
-* Added more debug lines to understand failures on different systems.
-
-### **v2.1.2 – Interactive installer support**
-
-* Allowed the Spicetify installer script to run fully interactively (no over-redirecting), so Marketplace prompts show up properly.
-
-### **v2.1.1 – More forgiving installer flow**
-
-* Handled cases where Spicetify’s installer exits with a non-zero code even though binaries are installed (e.g. due to prefs issues).  
-* Stopped relying purely on installer exit code; now verifies the spicetify binary itself.
-
-### **v2.0.0 → v2.1.0 – Big refactor**
-
-* Broke everything into functions.  
-* Added structured error handling and logging.  
-* Switched from brittle manual config edits to a more controlled approach and improved Flatpak path lookup.
-
-### **Pre-2.0.0 – The “it kinda works” era**
-
-* Simple linear script.  
-* Minimal checks, basic echo output.  
-* Did the job but wasn’t resilient or pleasant to use.  
-* This repo is the gradual story of turning that into something you can mostly trust to “just work.”
+*(For full historical changes, please refer to commit history).*
