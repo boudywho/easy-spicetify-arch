@@ -6,7 +6,7 @@
 
 If this saves you a couple of hours or some sanity, a ⭐ on GitHub is genuinely appreciated and helps keep the project polished!
 
-[![GitHub Stars](https://img.shields.io/github/stars/boudywho/easy-spicetify-arch?style=for-the-badge&logo=github&label=Star%20Me!)](https://github.com/boudywho/easy-spicetify-arch/stargazers)  
+[![GitHub Stars](https://img.shields.io/github/stars/boudywho/easy-spicetify-arch?style=for-the-badge&logo=github&label=Star%20Me!)](https://github.com/boudywho/easy-spicetify-arch/stargazers)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](./LICENSE)
 
 ---
@@ -14,16 +14,34 @@ If this saves you a couple of hours or some sanity, a ⭐ on GitHub is genuinely
 ## ✨ What Does This Do?
 
 * **Automates Everything:** Automatically detects your package manager, installs dependencies, downloads the official Spicetify installer, and patches the app.
-* **Smart Path Detection:** Automatically finds where Flatpak hid your Spotify installation (system or user) and wires it into Spicetify.
+* **Smart Path Detection:** Automatically finds where Flatpak hid your Spotify installation (user or system) and wires it into Spicetify.
 * **Fixes Permissions:** Handles the annoyingly complex Flatpak permission issues automatically.
 * **Marketplace Ready:** Hooks into the official installer and prompts you to install the Spicetify Marketplace.
-* **Safe to Re-run:** Idempotent by design. If you run it multiple times, it won’t trash your setup; it just updates or fixes things.
+* **Safe to Re-run:** Idempotent by design. If you run it multiple times, it won't trash your setup; it just updates or fixes things.
+* **Dry-Run Support:** Test the script without making changes using `-n/--dry-run`.
+* **Uninstall Support:** Remove Spicetify and restore Spotify to vanilla state with `-u/--uninstall`.
+
+---
+
+## 📦 Supported Distros & Package Managers
+
+**Cross-distro compatible:**
+- Arch, Artix, EndeavourOS, Manjaro, Garuda (pacman)
+- Debian, Ubuntu, Mint, Pop!_OS, Zorin, elementary, Kali (apt)
+- Fedora, RHEL, CentOS, Rocky, Alma, Amazon Linux, Nobara (dnf/yum)
+- openSUSE, SUSE (zypper)
+- Alpine (apk)
+- Gentoo (emerge)
+- Void (xbps)
+- Solus (eopkg)
+- Clear Linux (swupd)
+- NixOS (nix)
+
+**Shell support:** bash, zsh, fish
 
 ---
 
 ## 📦 Installation
-
-This script is **universal** and natively supports package managers for Arch, Debian, Ubuntu, Fedora, openSUSE, and more. It also supports `bash`, `zsh`, and `fish` shells.
 
 ### ✅ Requirements
 
@@ -53,6 +71,29 @@ chmod +x spicetify-universal.sh
 
 ---
 
+## 🛠️ Command Line Options
+
+| Option | Description |
+|--------|-------------|
+| `-h, --help` | Show help message |
+| `-d, --debug` | Enable debug mode (set -x) |
+| `-n, --dry-run` | Show what would be done without executing |
+| `-u, --uninstall` | Uninstall Spicetify and restore Spotify |
+| `-v, --version` | Show version |
+| `-V, --verbose` | Enable verbose output |
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DEBUG=1` | Enable debug output |
+| `DRY_RUN=1` | Dry-run mode (no changes) |
+| `VERBOSE=1` | Enable verbose output |
+| `SPICETIFY_INSTALL_URL=` | Override installer URL |
+| `SPICETIFY_INSTALLER_SHA256=` | Expected SHA256 of installer |
+
+---
+
 ## 🛠️ Troubleshooting
 
 Most issues fall into one of these buckets:
@@ -71,7 +112,7 @@ Most issues fall into one of these buckets:
 <details>
 <summary><h2>🧠 Manual Installation (For Curious / Advanced Users)</h2></summary>
 
-*You **don’t** need this if you use the script. This is just the “what the script automates for you” section.*
+*You **don't** need this if you use the script. This is just the "what the script automates for you" section.*
 
 ### 1. Install prerequisites
 
@@ -86,7 +127,7 @@ curl -fsSL https://raw.githubusercontent.com/spicetify/cli/main/install.sh | sh
 ```
 *Follow the prompts, and make sure `spicetify` ends up in your `PATH`.*
 
-### 3. Find Spotify’s Flatpak paths
+### 3. Find Spotify's Flatpak paths
 
 **Spotify install path:**
 

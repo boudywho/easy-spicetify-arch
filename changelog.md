@@ -2,6 +2,30 @@
 
 All notable changes to the Spicetify Flatpak Automator will be documented in this file.
 
+## [3.0.6] - 2026-05-02
+### Added
+- **Strict Mode & Safety Flags:** Script now uses `set -eEuo pipefail` for safer execution. Added `DEBUG`, `DRY_RUN`, and `VERBOSE` environment variables for flexible control.
+- **Custom Installer URL:** Can override Spicetify installer URL via `SPICETIFY_INSTALL_URL` environment variable.
+- **SHA256 Integrity Check:** Added optional `SPICETIFY_INSTALLER_SHA256` env var to verify installer integrity.
+- **Temp File Management:** New `_cleanup_tmp` trap and `_mktemp` function ensures proper temp file cleanup on exit.
+- **Dry-Run Mode:** Run with `DRY_RUN=1` or `-n/--dry-run` to see what would be executed without making changes.
+- **Uninstall Support:** New `-u/--uninstall` flag to remove Spicetify and restore Spotify to vanilla state. Cleans up CLI, config, and PATH entries.
+- **Pre-flight Checks:** New `preflight_checks()` function displays distro, package manager, user, shell, and bash version info.
+- **Distro-Specific Hints:** New `show_distro_hints()` provides tailored instructions for Alpine, Arch, Debian, Ubuntu, Fedora, RHEL, and CentOS.
+- **Config File Support:** Optional `~/.config/spicetify-setup/setup.conf` for pre-configuration. Validates permissions before sourcing.
+
+### Changed
+- **Improved Color Handling:** New `_color_support()` and `_color()` functions properly detect dumb/non-color terminals and fall back gracefully.
+- **Enhanced Package Manager Detection:** Now reads `/etc/os-release` for ID and ID_LIKE for more accurate distro detection.
+- **Extended Distro Support:** Added support for Alpine (apk), Gentoo (emerge), Void (xbps), Solus (eopkg), Clear (swupd), and NixOS (nix) package managers.
+- **Improved Path Detection:** Now checks user installation first before system-wide for Spotify Flatpak detection.
+- **Better Shell Detection:** Uses `/proc/$$/exe` as primary method for shell detection, falling back to `$SHELL`.
+
+### Fixed
+- **Debug Output:** New `log_debug()` function properly outputs debug information only when `DEBUG=1`.
+- **Interactive Detection:** New `_is_interactive()` function correctly detects if stdin/stdout are connected to a TTY.
+- **Better Error Messages:** Installer failure now shows "Spicetify command not found after installation" instead of generic message.
+
 ## [3.0.4] - 2026-04-30
 ### Added
 - **Auto-Kill Spotify:** Added a `kill_spotify` function that silently checks if the Spotify Flatpak is running in the background and automatically terminates it. This prevents file lock errors when the script attempts to patch or restore Spotify files.
